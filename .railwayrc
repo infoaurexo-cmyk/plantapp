@@ -1,0 +1,11 @@
+{
+  "configs": {
+    "prod": {
+      "environment": "production",
+      "plugins": []
+    }
+  },
+  "cli": {
+    "projectId": ""
+  }
+}
