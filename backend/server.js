@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 require('dotenv').config();
 
 const { initializeDatabase } = require('./database');
@@ -10,6 +11,21 @@ const analysisRouter = require('./routes/analysis');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// CSP headers for Flutter web (allows WASM and CanvasKit from gstatic)
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self' https://www.gstatic.com; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.gstatic.com; " +
+    "script-src-elem 'self' 'unsafe-inline' https://www.gstatic.com; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: https:; " +
+    "font-src 'self' data: https://fonts.gstatic.com; " +
+    "connect-src * data: blob:; " +
+    "worker-src 'self' blob:;"
+  );
+  next();
+});
 
 // Middleware
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
@@ -33,9 +49,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 404 handler
+// Serve Flutter web app
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // Error handler
