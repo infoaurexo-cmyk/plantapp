@@ -82,7 +82,8 @@ app.get('/', (req, res) => {
   }
 });
 
-app.use(express.static(publicPath));
+// Serve static files WITHOUT automatically serving index.html (we handle that in the GET / route above)
+app.use(express.static(publicPath, { index: false }));
 
 // Fallback for SPA routing - catch all routes and serve index.html with mobile viewport
 app.use((req, res) => {
@@ -130,7 +131,8 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  // Log but continue - critical functionality (like viewport injection) should still work
+  // even if database initialization fails
 });
 
 // Start server
