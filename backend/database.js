@@ -5,9 +5,15 @@ require('dotenv').config();
 // Railway injects DATABASE_URL automatically when PostgreSQL is added
 const connectionString = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'plant_app'}`;
 
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✓ Set' : '✗ Not set (using fallback)');
+console.log('Connection string (masked):', connectionString.replace(/:[^@]+@/, ':***@'));
+
 const pool = new pg.Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
+  max: 20,
 });
 
 let db = pool;
@@ -18,8 +24,11 @@ pool.on('error', (err) => {
 
 // Initialize database with tables
 const initializeDatabase = async () => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
+    console.log('✅ Connected to PostgreSQL');
+
     // Users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -94,10 +103,12 @@ const initializeDatabase = async () => {
 
     console.log('✅ Database initialized successfully');
   } catch (err) {
-    console.error('Database initialization error:', err.message);
+    console.error('❌ Database initialization error:', err.message);
+    console.error('Error code:', err.code);
+    console.error('Full error:', err);
     throw err;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 
