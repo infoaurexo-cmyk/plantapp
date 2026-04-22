@@ -53,42 +53,18 @@ app.get('/api/health', (req, res) => {
 const publicPath = path.join(__dirname, 'public');
 const fs = require('fs');
 
-// Middleware to inject viewport meta tag for mobile compatibility (BEFORE static files)
-app.get('/', (req, res) => {
-  let html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
-
-  // Ensure viewport meta tag exists for mobile rendering
-  if (!html.includes('name="viewport"')) {
-    html = html.replace(
-      '<meta name="description"',
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n  <meta name="description"'
-    );
-  }
-
+// Serve static files (but disable caching for HTML)
+app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  res.type('text/html');
-  res.send(html);
+  next();
 });
-
-// Serve static files
 app.use(express.static(publicPath));
 
-// Fallback for SPA routing - catch all other routes and serve index.html
+// Fallback for SPA routing - catch all other routes and serve index.html with viewport meta tag
 app.use((req, res) => {
-  let html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
-
-  if (!html.includes('name="viewport"')) {
-    html = html.replace(
-      '<meta name="description"',
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n  <meta name="description"'
-    );
-  }
-
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+  const html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
   res.type('text/html');
   res.send(html);
 });
