@@ -20,7 +20,7 @@ COPY backend/package.json backend/package-lock.json ./
 # Install dependencies from scratch - rebuild all native modules for Linux
 # Force build from source to ensure SQLite3 compiles for Linux, not using macOS prebuilt binaries
 RUN npm cache clean --force && \
-    npm ci --build-from-source && \
+    npm ci --force --no-optional --build-from-source && \
     npm rebuild sqlite3 --build-from-source
 
 # Copy backend application (.env is excluded via .dockerignore)
