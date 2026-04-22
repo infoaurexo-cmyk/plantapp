@@ -51,11 +51,10 @@ app.get('/api/health', (req, res) => {
 
 // Serve Flutter web app with mobile fixes
 const publicPath = path.join(__dirname, 'public');
-app.use(express.static(publicPath));
+const fs = require('fs');
 
-// Middleware to inject viewport meta tag for mobile compatibility
+// Middleware to inject viewport meta tag for mobile compatibility (BEFORE static files)
 app.get('/', (req, res) => {
-  const fs = require('fs');
   let html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
 
   // Ensure viewport meta tag exists for mobile rendering
@@ -69,12 +68,29 @@ app.get('/', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.type('text/html');
   res.send(html);
 });
 
-// Fallback for SPA routing
+// Serve static files
+app.use(express.static(publicPath));
+
+// Fallback for SPA routing - catch all other routes and serve index.html
 app.use((req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+  let html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
+
+  if (!html.includes('name="viewport"')) {
+    html = html.replace(
+      '<meta name="description"',
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n  <meta name="description"'
+    );
+  }
+
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.type('text/html');
+  res.send(html);
 });
 
 // Error handler
