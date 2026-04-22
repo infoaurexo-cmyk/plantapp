@@ -20,9 +20,10 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm cache clean --force && \
     npm install --only=production --no-optional
 
-# Copy backend application (excluding .env, use .env.production instead)
+# Copy backend application (.env is excluded via .dockerignore)
 COPY backend/ .
-RUN rm -f .env && mv .env.production .env
+# Use .env.production as the environment file for production
+RUN mv .env.production .env
 
 # Expose port (matches PORT=3000 in .env.production)
 EXPOSE 3000
