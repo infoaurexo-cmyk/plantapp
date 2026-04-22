@@ -1,4 +1,4 @@
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const path = require('path');
 require('dotenv').config();
 
@@ -6,12 +6,8 @@ const DB_PATH = process.env.DATABASE_PATH || './plant_app.db';
 let db = null;
 
 try {
-  db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) {
-      console.error(`Database connection error at ${DB_PATH}:`, err.message);
-      throw err;
-    }
-  });
+  db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
 } catch (err) {
   console.error(`Fatal: Cannot initialize database at ${DB_PATH}:`, err.message);
   process.exit(1);
@@ -19,9 +15,9 @@ try {
 
 // Initialize database with tables
 const initializeDatabase = () => {
-  db.serialize(() => {
+  try {
     // Users table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -32,7 +28,7 @@ const initializeDatabase = () => {
     `);
 
     // Plants table
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS plants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -51,7 +47,7 @@ const initializeDatabase = () => {
     `);
 
     // Plant analysis records
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS plant_analysis (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         plant_id INTEGER NOT NULL,
@@ -66,7 +62,7 @@ const initializeDatabase = () => {
     `);
 
     // Disease/pest database
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS diseases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
@@ -81,7 +77,7 @@ const initializeDatabase = () => {
     `);
 
     // Care recommendations
-    db.run(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS care_tips (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         plant_type TEXT NOT NULL,
@@ -93,34 +89,46 @@ const initializeDatabase = () => {
     `);
 
     console.log('✅ Database initialized successfully');
-  });
+  } catch (err) {
+    console.error('Database initialization error:', err.message);
+    throw err;
+  }
 };
 
 // Helper functions for database operations
 const dbRun = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
+    try {
+      const stmt = db.prepare(sql);
+      const info = stmt.run(...params);
+      resolve(info);
+    } catch (err) {
+      reject(err);
+    }
   });
 };
 
 const dbGet = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+    try {
+      const stmt = db.prepare(sql);
+      const row = stmt.get(...params);
+      resolve(row);
+    } catch (err) {
+      reject(err);
+    }
   });
 };
 
 const dbAll = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
+    try {
+      const stmt = db.prepare(sql);
+      const rows = stmt.all(...params);
+      resolve(rows);
+    } catch (err) {
+      reject(err);
+    }
   });
 };
 

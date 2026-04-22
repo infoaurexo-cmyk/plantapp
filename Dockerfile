@@ -2,9 +2,9 @@ FROM node:22-bookworm
 
 WORKDIR /app
 
-# SQLite3 native module compilation fix for Linux
-# Cache buster - forces fresh npm install
-# Updated: 2026-04-22T13:34:30Z
+# Switched to better-sqlite3 for reliable Docker deployment
+# better-sqlite3 has superior native module compilation support
+# Updated: 2026-04-22T13:35:00Z
 
 # Install build dependencies for SQLite and other native modules
 RUN apt-get update && apt-get install -y \
@@ -17,11 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Copy backend package files
 COPY backend/package.json backend/package-lock.json ./
 
-# Install dependencies from scratch - rebuild all native modules for Linux
-# Force build from source to ensure SQLite3 compiles for Linux, not using macOS prebuilt binaries
+# Install dependencies from scratch
+# better-sqlite3 has better Docker support and more reliable native compilation
 RUN npm cache clean --force && \
-    npm ci --force --no-optional --build-from-source && \
-    npm rebuild sqlite3 --build-from-source
+    npm ci
 
 # Copy backend application (.env is excluded via .dockerignore)
 # Remove node_modules from copied files - use the freshly built ones

@@ -1,0 +1,115 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║          PLANT APP BACKEND - CRITICAL FIXES APPLIED (2026-04-22)           ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+PROBLEM OVERVIEW:
+- Backend crashed on Railway after initial deployment
+- Root causes: Route ordering bugs + SQLite3 native module incompatibility
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FIX #1: EXPRESS ROUTE ORDERING (Critical)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem:
+  Generic routes matched before specific routes
+  ❌ router.get('/:userId', ...)      [Line before specific routes]
+  ❌ router.get('/:analysisId', ...)  [Line before specific routes]
+
+Solution Applied:
+  ✅ Reordered routes in 3 files:
+     - backend/routes/plants.js
+     - backend/routes/users.js  
+     - backend/routes/analysis.js
+  
+  ✅ Specific routes now defined FIRST:
+     - router.get('/details/:plantId', ...)
+     - router.get('/:userId/analysis-history', ...)
+     - router.get('/plant/:plantId', ...)
+  
+  ✅ Generic catch-all routes LAST:
+     - router.get('/:userId', ...)
+     - router.get('/:analysisId', ...)
+
+Result: Express now matches specific routes first, preventing path parameter conflicts
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FIX #2: SQLITE3 NATIVE MODULE COMPILATION (Critical)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem:
+  ❌ ERR_DLOPEN_FAILED when loading sqlite3
+  ❌ macOS binaries incompatible with Linux Docker environment
+  ❌ npm ci --only=production used prebuilt binaries
+
+Solution Applied:
+  ✅ Dockerfile changes:
+     FROM node:22-bookworm
+     
+     RUN apt-get install -y \
+         build-essential \    ← C/C++ compiler toolchain
+         python3 \            ← Required for node-gyp
+         make \               ← Build automation
+         g++ \                ← C++ compiler
+     
+     RUN npm install --only=production  ← Rebuild from source, not prebuilt
+
+  ✅ SQLite3 now compiles fresh for Linux environment
+
+Result: SQLite3 loads successfully in Docker container
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FIX #3: DOCKERFILE CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Changes:
+  ✅ Created root-level /Dockerfile (Railway auto-discovery)
+  ✅ Set proper build context with railway.toml
+  ✅ Removed development .env file in production image
+  ✅ Use .env.production for production settings
+
+Result: Docker builds correctly with production configuration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FIX #4: ENVIRONMENT CONFIGURATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ backend/.env.production:
+   PORT=3000
+   NODE_ENV=production
+   DATABASE_PATH=./plant_app.db
+   CORS_ORIGIN=*
+
+✅ Dockerfile now ensures .env.production is used:
+   RUN rm -f .env && mv .env.production .env
+
+Result: Production settings are loaded when dotenv.config() runs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GIT COMMITS:
+━━━━━━━━━━━
+
+1. ca7508e - Fix: Use .env.production in Docker container
+2. d5e311d - Fix: Update production environment variables  
+3. ad18628 - Trigger Docker rebuild: SQLite3 fix verification
+4. b5ade92 - config: Explicitly specify Dockerfile path
+5. b7c5ca1 - Fix: Properly compile SQLite3 native module
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EXPECTED RESULTS AFTER DEPLOYMENT:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Backend starts successfully on port 3000
+✅ SQLite3 database loads without errors
+✅ API routes respond correctly
+✅ /api/health returns: {"status":"ok",...}
+✅ /api/plants, /api/users, /api/analysis endpoints available
+✅ No route matching errors
+✅ No native module crashes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
