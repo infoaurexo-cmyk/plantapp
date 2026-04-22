@@ -24,8 +24,8 @@ RUN npm cache clean --force && \
 COPY backend/ .
 RUN rm -f .env && mv .env.production .env
 
-# Expose port
-EXPOSE 5000
+# Expose port (matches PORT=3000 in .env.production)
+EXPOSE 3000
 
 # Start application
 CMD ["npm", "start"]
