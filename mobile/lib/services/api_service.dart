@@ -8,11 +8,11 @@ class ApiService {
   static final _client = http.Client();
 
   // ── Users ──────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> createUser(String username, String email) async {
+  static Future<Map<String, dynamic>> createUser(String email) async {
     final res = await _client.post(
       Uri.parse('$_baseUrl/users'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'email': email}),
+      body: jsonEncode({'email': email}),
     );
     return jsonDecode(res.body);
   }
@@ -23,6 +23,17 @@ class ApiService {
   }
 
   // ── Plants ─────────────────────────────────────────────────────────────
+  // Identify plant from image using AI
+  static Future<Map<String, dynamic>> identifyPlant(Uint8List imageBytes) async {
+    final imageBase64 = base64Encode(imageBytes);
+    final res = await _client.post(
+      Uri.parse('$_baseUrl/plants/identify'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'image_base64': imageBase64}),
+    );
+    return jsonDecode(res.body);
+  }
+
   static Future<Map<String, dynamic>> addPlant({
     required int userId,
     required String name,

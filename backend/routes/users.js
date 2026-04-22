@@ -2,14 +2,17 @@ const express = require('express');
 const router = express.Router();
 const { dbRun, dbGet, dbAll } = require('../database');
 
-// Create new user
+// Create new user (email only, auto-generate username)
 router.post('/', async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { email } = req.body;
 
-    if (!username || !email) {
-      return res.status(400).json({ success: false, error: 'username and email are required' });
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
     }
+
+    // Auto-generate username from email (part before @)
+    const username = email.split('@')[0] + '_' + Date.now();
 
     const result = await dbRun(
       'INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id',
@@ -19,11 +22,12 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      userId: result.rows[0].id
+      userId: result.rows[0].id,
+      email: email
     });
   } catch (err) {
     if (err.message.includes('duplicate key value violates unique constraint')) {
-      res.status(400).json({ success: false, error: 'Username or email already exists' });
+      res.status(400).json({ success: false, error: 'Email already exists' });
     } else {
       res.status(500).json({ success: false, error: err.message });
     }

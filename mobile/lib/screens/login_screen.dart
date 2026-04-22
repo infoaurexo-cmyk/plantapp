@@ -11,35 +11,38 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
 
   Future<void> _createAccount() async {
-    final username = _usernameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
-    if (username.isEmpty || email.isEmpty) {
-      setState(() => _error = 'Please enter a username and email.');
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter your email.');
+      return;
+    }
+
+    if (!email.contains('@')) {
+      setState(() => _error = 'Please enter a valid email.');
       return;
     }
 
     setState(() { _loading = true; _error = null; });
     try {
-      final res = await ApiService.createUser(username, email);
+      final res = await ApiService.createUser(email);
       if (res['success'] == true) {
-        await UserSession.save(res['userId'], username);
+        await UserSession.save(res['userId']);
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => HomeScreen(userId: res['userId'], username: username)),
+            MaterialPageRoute(builder: (_) => HomeScreen(userId: res['userId'])),
           );
         }
       } else {
         setState(() => _error = res['error'] ?? 'Failed to create account.');
       }
     } catch (e) {
-      setState(() => _error = 'Cannot reach server. Is the backend running on port 3000?');
+      setState(() => _error = 'Cannot reach server. Is the backend running?');
     } finally {
       setState(() => _loading = false);
     }
@@ -75,19 +78,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text('Get Started', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 20),
                         TextField(
-                          controller: _usernameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Username',
-                            prefixIcon: Icon(Icons.person_outline),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
                           decoration: const InputDecoration(
-                            labelText: 'Email',
+                            labelText: 'Email Address',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(),
                           ),
@@ -123,7 +117,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _usernameCtrl.dispose();
     _emailCtrl.dispose();
     super.dispose();
   }

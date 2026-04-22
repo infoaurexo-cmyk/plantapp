@@ -1,6 +1,68 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const { dbRun, dbGet, dbAll } = require('../database');
+require('dotenv').config();
+
+const PLANTNET_API_KEY = process.env.PLANTNET_API_KEY;
+
+// Function to identify plant from image
+const identifyPlantFromImage = async (imageBase64) => {
+  try {
+    if (!PLANTNET_API_KEY) {
+      console.warn('PlantNet API key not configured');
+      return null;
+    }
+
+    const response = await axios.post(
+      `https://api.plantnet.org/v2/identify/all?include-related-images=true&no-reject=false&lang=en&api-key=${PLANTNET_API_KEY}`,
+      {
+        images: [{ imageBase64 }],
+        organs: ['leaf', 'flower', 'fruit', 'bark']
+      },
+      { timeout: 30000 }
+    );
+
+    if (response.data.results && response.data.results.length > 0) {
+      const topResult = response.data.results[0];
+      return {
+        name: topResult.species.commonNames?.[0] || topResult.species.scientificNameWithoutAuthor,
+        species: topResult.species.scientificNameWithoutAuthor,
+        type: 'plant', // default type
+        probability: (topResult.score * 100).toFixed(2),
+        genus: topResult.species.genus?.scientificNameWithoutAuthor || null
+      };
+    }
+    return null;
+  } catch (err) {
+    console.error('PlantNet identification error:', err.message);
+    return null;
+  }
+};
+
+// Identify plant from image - returns plant details
+router.post('/identify', async (req, res) => {
+  try {
+    const { image_base64 } = req.body;
+
+    if (!image_base64) {
+      return res.status(400).json({ success: false, error: 'image_base64 is required' });
+    }
+
+    const plantInfo = await identifyPlantFromImage(image_base64);
+
+    if (!plantInfo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Could not identify plant from image. Please ensure the image shows the plant clearly.'
+      });
+    }
+
+    res.json({ success: true, data: plantInfo });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // Get single plant details (MUST be before generic /:userId route)
 router.get('/details/:plantId', async (req, res) => {
