@@ -4,22 +4,79 @@ const axios = require('axios');
 const { dbRun, dbGet, dbAll } = require('../database');
 require('dotenv').config();
 
+// AI Configuration
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY;
 const PLANTNET_API_KEY = process.env.PLANTNET_API_KEY;
+const AI_PROVIDER = process.env.AI_PROVIDER || 'ollama'; // ollama, openai, huggingface
+
+const systemPrompt = `You are an expert plant health specialist. Analyze the plant symptoms and provide:
+1. Most likely disease or pest problem
+2. Severity level (Low/Medium/High)
+3. 3-5 specific, practical organic remedies
+4. Prevention tips for the future
+Format your response clearly with numbered sections.`;
+
+// Function to call OpenAI API
+const getOpenAIRecommendations = async (plantType, symptoms) => {
+  try {
+    if (!OPENAI_API_KEY) {
+      console.warn('OpenAI API key not configured');
+      return null;
+    }
+
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `My ${plantType} plant has these symptoms: ${symptoms}` }
+      ],
+      temperature: 0.7,
+      max_tokens: 500
+    }, {
+      headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+      timeout: 30000
+    });
+
+    return response.data.choices[0].message.content;
+  } catch (err) {
+    console.error('OpenAI error:', err.message);
+    return null;
+  }
+};
+
+// Function to call HuggingFace API
+const getHuggingFaceRecommendations = async (plantType, symptoms) => {
+  try {
+    if (!HUGGINGFACE_API_KEY) {
+      console.warn('HuggingFace API key not configured');
+      return null;
+    }
+
+    const response = await axios.post(
+      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1',
+      {
+        inputs: `${systemPrompt}\n\nMy ${plantType} plant has these symptoms: ${symptoms}`
+      },
+      {
+        headers: { 'Authorization': `Bearer ${HUGGINGFACE_API_KEY}` },
+        timeout: 60000
+      }
+    );
+
+    return response.data[0]?.generated_text || null;
+  } catch (err) {
+    console.error('HuggingFace error:', err.message);
+    return null;
+  }
+};
 
 // Function to call Ollama for AI recommendations
 const getOllamaRecommendations = async (plantType, symptoms) => {
   try {
-    const prompt = `You are an expert plant health specialist. A user has a ${plantType} plant with the following symptoms: ${symptoms}.
-
-    Please provide:
-    1. What disease or pest problem is this likely to be?
-    2. Severity level (Low/Medium/High)
-    3. 3-5 specific, practical recommendations using common household items or organic methods
-    4. Prevention tips for the future
-
-    Be concise and practical.`;
+    const prompt = `${systemPrompt}\n\nMy ${plantType} plant has these symptoms: ${symptoms}`;
 
     const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
       model: OLLAMA_MODEL,
@@ -38,6 +95,28 @@ const getOllamaRecommendations = async (plantType, symptoms) => {
     }
     return null;
   }
+};
+
+// Unified AI recommendation function that tries multiple providers
+const getAIRecommendations = async (plantType, symptoms) => {
+  let result = null;
+
+  // Try configured provider first
+  if (AI_PROVIDER === 'openai') {
+    console.log('Trying OpenAI...');
+    result = await getOpenAIRecommendations(plantType, symptoms);
+  } else if (AI_PROVIDER === 'huggingface') {
+    console.log('Trying HuggingFace...');
+    result = await getHuggingFaceRecommendations(plantType, symptoms);
+  }
+
+  // Fall back to Ollama if primary provider fails or is not configured
+  if (!result) {
+    console.log('Trying Ollama...');
+    result = await getOllamaRecommendations(plantType, symptoms);
+  }
+
+  return result;
 };
 
 // Function to identify plant from image (using PlantNet API)
@@ -108,7 +187,7 @@ router.post('/', async (req, res) => {
 
     // Run AI and knowledge base lookup in parallel
     const [aiRecommendations, matchedDiseases, careTips] = await Promise.all([
-      getOllamaRecommendations(plantSpecies, symptomsText),
+      getAIRecommendations(plantSpecies, symptomsText),
       dbAll(
         `SELECT name, description, organic_remedies, prevention_tips, severity_level
          FROM diseases
