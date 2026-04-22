@@ -18,7 +18,7 @@ COPY backend/package.json backend/package-lock.json ./
 
 # Install dependencies from scratch without pre-built binaries
 RUN npm cache clean --force && \
-    npm install --only=production --no-optional
+    npm install --only=production
 
 # Copy backend application (.env is excluded via .dockerignore)
 COPY backend/ .
