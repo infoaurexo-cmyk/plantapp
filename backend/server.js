@@ -60,6 +60,36 @@ app.use((req, res, next) => {
   res.setHeader('Expires', '0');
   next();
 });
+
+// Specific handler for root path with viewport injection
+app.get('/', (req, res) => {
+  try {
+    let html = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
+
+    // Inject viewport meta tag if not present
+    if (!html.includes('viewport')) {
+      html = html.replace(
+        '<meta name="description"',
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">\n  <meta name="description"'
+      );
+    }
+
+    // Also ensure mobile app capable
+    if (!html.includes('apple-mobile-web-app-capable')) {
+      html = html.replace(
+        '</head>',
+        '<meta name="apple-mobile-web-app-capable" content="yes">\n  </meta>'
+      );
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('Error serving root HTML:', err);
+    res.status(500).send('Error loading application');
+  }
+});
+
 app.use(express.static(publicPath));
 
 // Fallback for SPA routing - catch all routes and serve index.html with mobile viewport
