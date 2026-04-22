@@ -12,17 +12,17 @@ router.post('/', async (req, res) => {
     }
 
     const result = await dbRun(
-      'INSERT INTO users (username, email) VALUES (?, ?)',
+      'INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id',
       [username, email]
     );
 
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      userId: result.lastID
+      userId: result.rows[0].id
     });
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint failed')) {
+    if (err.message.includes('duplicate key value violates unique constraint')) {
       res.status(400).json({ success: false, error: 'Username or email already exists' });
     } else {
       res.status(500).json({ success: false, error: err.message });
@@ -38,7 +38,7 @@ router.get('/:userId/analysis-history', async (req, res) => {
     const history = await dbAll(
       `SELECT pa.* FROM plant_analysis pa
        JOIN plants p ON pa.plant_id = p.id
-       WHERE p.user_id = ?
+       WHERE p.user_id = $1
        ORDER BY pa.created_at DESC
        LIMIT 20`,
       [userId]
@@ -54,7 +54,7 @@ router.get('/:userId/analysis-history', async (req, res) => {
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+    const user = await dbGet('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
@@ -62,7 +62,7 @@ router.get('/:userId', async (req, res) => {
 
     // Get user's plants count
     const plantsCount = await dbGet(
-      'SELECT COUNT(*) as count FROM plants WHERE user_id = ?',
+      'SELECT COUNT(*) as count FROM plants WHERE user_id = $1',
       [userId]
     );
 
@@ -79,7 +79,7 @@ router.put('/:userId', async (req, res) => {
     const { username, email } = req.body;
 
     await dbRun(
-      'UPDATE users SET username=?, email=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      'UPDATE users SET username=$1, email=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3',
       [username, email, userId]
     );
 

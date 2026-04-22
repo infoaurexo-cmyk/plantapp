@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
     }
 
     // Get plant info
-    const plant = await dbGet('SELECT * FROM plants WHERE id = ?', [plant_id]);
+    const plant = await dbGet('SELECT * FROM plants WHERE id = $1', [plant_id]);
     if (!plant) {
       return res.status(404).json({ success: false, error: 'Plant not found' });
     }
@@ -112,13 +112,13 @@ router.post('/', async (req, res) => {
       dbAll(
         `SELECT name, description, organic_remedies, prevention_tips, severity_level
          FROM diseases
-         WHERE lower(symptoms) LIKE lower(?) OR lower(affected_plants) LIKE lower(?)
+         WHERE lower(symptoms) LIKE lower($1) OR lower(affected_plants) LIKE lower($2)
          LIMIT 3`,
         [`%${symptomsText.split(' ').slice(0, 3).join('%')}%`, `%${plantType}%`]
       ),
       dbAll(
         `SELECT care_category, tip, frequency FROM care_tips
-         WHERE lower(plant_type) = lower(?) OR lower(plant_type) = lower(?)
+         WHERE lower(plant_type) = lower($1) OR lower(plant_type) = lower($2)
          ORDER BY care_category`,
         [plantType, plant.species || plantType]
       )
@@ -146,13 +146,13 @@ router.post('/', async (req, res) => {
     // Save analysis to database
     const analysisResult = await dbRun(
       `INSERT INTO plant_analysis (plant_id, symptoms, detected_issue, severity, recommendations, image_url)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       [plant_id, symptoms, detectedIssue, severity, recommendations, imageUrl]
     );
 
     res.status(201).json({
       success: true,
-      analysisId: analysisResult.lastID,
+      analysisId: analysisResult.rows[0].id,
       plantInfo: {
         name: plant.name,
         type: plant.type,
@@ -192,7 +192,7 @@ router.get('/plant/:plantId', async (req, res) => {
     const { plantId } = req.params;
 
     const history = await dbAll(
-      'SELECT * FROM plant_analysis WHERE plant_id = ? ORDER BY created_at DESC',
+      'SELECT * FROM plant_analysis WHERE plant_id = $1 ORDER BY created_at DESC',
       [plantId]
     );
 
@@ -208,7 +208,7 @@ router.get('/:analysisId', async (req, res) => {
     const { analysisId } = req.params;
 
     const analysis = await dbGet(
-      'SELECT * FROM plant_analysis WHERE id = ?',
+      'SELECT * FROM plant_analysis WHERE id = $1',
       [analysisId]
     );
 
