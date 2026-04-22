@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
-const String _baseUrl = 'http://localhost:3000/api';
+const String _baseUrl = 'https://plantapp-backend-production.up.railway.app/api';
 
 class ApiService {
   static final _client = http.Client();

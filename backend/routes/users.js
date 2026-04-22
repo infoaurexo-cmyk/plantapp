@@ -2,28 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { dbRun, dbGet, dbAll } = require('../database');
 
-// Get user profile
-router.get('/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await dbGet('SELECT * FROM users WHERE id = ?', [userId]);
-
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Get user's plants count
-    const plantsCount = await dbGet(
-      'SELECT COUNT(*) as count FROM plants WHERE user_id = ?',
-      [userId]
-    );
-
-    res.json({ success: true, data: { ...user, plantsCount: plantsCount.count } });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // Create new user
 router.post('/', async (req, res) => {
   try {
@@ -52,24 +30,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update user profile
-router.put('/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { username, email } = req.body;
-
-    await dbRun(
-      'UPDATE users SET username=?, email=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-      [username, email, userId]
-    );
-
-    res.json({ success: true, message: 'User updated successfully' });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Get user's analysis history
+// Get user's analysis history (MUST be before generic /:userId route)
 router.get('/:userId/analysis-history', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -84,6 +45,45 @@ router.get('/:userId/analysis-history', async (req, res) => {
     );
 
     res.json({ success: true, data: history });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get user profile (MUST be LAST - generic catch-all route)
+router.get('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [userId]);
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Get user's plants count
+    const plantsCount = await dbGet(
+      'SELECT COUNT(*) as count FROM plants WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({ success: true, data: { ...user, plantsCount: plantsCount.count } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Update user profile
+router.put('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { username, email } = req.body;
+
+    await dbRun(
+      'UPDATE users SET username=?, email=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      [username, email, userId]
+    );
+
+    res.json({ success: true, message: 'User updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

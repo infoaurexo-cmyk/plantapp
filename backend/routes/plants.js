@@ -2,21 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { dbRun, dbGet, dbAll } = require('../database');
 
-// Get all plants for a user
-router.get('/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const plants = await dbAll(
-      'SELECT * FROM plants WHERE user_id = ? ORDER BY created_at DESC',
-      [userId]
-    );
-    res.json({ success: true, data: plants });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Get single plant details
+// Get single plant details (MUST be before generic /:userId route)
 router.get('/details/:plantId', async (req, res) => {
   try {
     const { plantId } = req.params;
@@ -93,6 +79,20 @@ router.delete('/:plantId', async (req, res) => {
     await dbRun('DELETE FROM plants WHERE id = ?', [plantId]);
 
     res.json({ success: true, message: 'Plant deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all plants for a user (MUST be LAST - generic catch-all route)
+router.get('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const plants = await dbAll(
+      'SELECT * FROM plants WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+    res.json({ success: true, data: plants });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

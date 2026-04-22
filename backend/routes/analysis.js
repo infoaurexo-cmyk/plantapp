@@ -186,7 +186,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get analysis history for a plant
+// Get analysis history for a plant (MUST be before generic /:analysisId route)
 router.get('/plant/:plantId', async (req, res) => {
   try {
     const { plantId } = req.params;
@@ -202,7 +202,7 @@ router.get('/plant/:plantId', async (req, res) => {
   }
 });
 
-// Get single analysis result
+// Get single analysis result (MUST be LAST - generic catch-all route)
 router.get('/:analysisId', async (req, res) => {
   try {
     const { analysisId } = req.params;
