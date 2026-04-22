@@ -2,15 +2,14 @@ const pg = require('pg');
 require('dotenv').config();
 
 // PostgreSQL connection configuration
-const dbConfig = {
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'plant_app'
-};
+// Railway injects DATABASE_URL automatically when PostgreSQL is added
+const connectionString = process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'plant_app'}`;
 
-const pool = new pg.Pool(dbConfig);
+const pool = new pg.Pool({
+  connectionString,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
 let db = pool;
 
 pool.on('error', (err) => {
