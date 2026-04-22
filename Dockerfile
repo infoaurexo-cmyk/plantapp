@@ -2,8 +2,9 @@ FROM node:22-bookworm
 
 WORKDIR /app
 
-# Install build dependencies for SQLite
+# Install build dependencies for SQLite and other native modules
 RUN apt-get update && apt-get install -y \
+    build-essential \
     python3 \
     make \
     g++ \
@@ -12,10 +13,9 @@ RUN apt-get update && apt-get install -y \
 # Copy backend package files
 COPY backend/package.json backend/package-lock.json ./
 
-# Install dependencies (clear cache and rebuild from source)
+# Install dependencies from scratch without pre-built binaries
 RUN npm cache clean --force && \
-    npm ci --only=production && \
-    npm rebuild --build-from-source
+    npm install --only=production --no-optional
 
 # Copy backend application
 COPY backend/ .
