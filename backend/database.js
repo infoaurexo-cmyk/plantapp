@@ -1,36 +1,41 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const pg = require('pg');
 require('dotenv').config();
 
-const DB_PATH = process.env.DATABASE_PATH || './plant_app.db';
-let db = null;
+// PostgreSQL connection configuration
+const dbConfig = {
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'plant_app'
+};
 
-try {
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-} catch (err) {
-  console.error(`Fatal: Cannot initialize database at ${DB_PATH}:`, err.message);
-  process.exit(1);
-}
+const pool = new pg.Pool(dbConfig);
+let db = pool;
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+});
 
 // Initialize database with tables
-const initializeDatabase = () => {
+const initializeDatabase = async () => {
+  const client = await pool.connect();
   try {
     // Users table
-    db.exec(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Plants table
-    db.exec(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS plants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         species TEXT,
@@ -40,31 +45,31 @@ const initializeDatabase = () => {
         sunlight_requirement TEXT,
         notes TEXT,
         image_url TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
 
     // Plant analysis records
-    db.exec(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS plant_analysis (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         plant_id INTEGER NOT NULL,
         symptoms TEXT,
         detected_issue TEXT,
         severity TEXT,
         recommendations TEXT,
         image_url TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (plant_id) REFERENCES plants(id)
       )
     `);
 
     // Disease/pest database
-    db.exec(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS diseases (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
         description TEXT,
         symptoms TEXT,
@@ -72,19 +77,19 @@ const initializeDatabase = () => {
         prevention_tips TEXT,
         affected_plants TEXT,
         severity_level TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
     // Care recommendations
-    db.exec(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS care_tips (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         plant_type TEXT NOT NULL,
         care_category TEXT,
         tip TEXT,
         frequency TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -92,48 +97,28 @@ const initializeDatabase = () => {
   } catch (err) {
     console.error('Database initialization error:', err.message);
     throw err;
+  } finally {
+    client.release();
   }
 };
 
 // Helper functions for database operations
 const dbRun = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const stmt = db.prepare(sql);
-      const info = stmt.run(...params);
-      resolve(info);
-    } catch (err) {
-      reject(err);
-    }
-  });
+  return pool.query(sql, params);
 };
 
-const dbGet = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const stmt = db.prepare(sql);
-      const row = stmt.get(...params);
-      resolve(row);
-    } catch (err) {
-      reject(err);
-    }
-  });
+const dbGet = async (sql, params = []) => {
+  const result = await pool.query(sql, params);
+  return result.rows[0];
 };
 
-const dbAll = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    try {
-      const stmt = db.prepare(sql);
-      const rows = stmt.all(...params);
-      resolve(rows);
-    } catch (err) {
-      reject(err);
-    }
-  });
+const dbAll = async (sql, params = []) => {
+  const result = await pool.query(sql, params);
+  return result.rows;
 };
 
 module.exports = {
-  db,
+  db: pool,
   initializeDatabase,
   dbRun,
   dbGet,
