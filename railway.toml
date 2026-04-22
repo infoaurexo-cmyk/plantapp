@@ -1,7 +1,7 @@
 [build]
 builder = "dockerfile"
-dockerfile = "./backend/Dockerfile"
-context = "."
+dockerfile = "Dockerfile"
+context = "backend"
 
 [deploy]
-startCommand = "cd backend && node server.js"
+startCommand = "node server.js"
