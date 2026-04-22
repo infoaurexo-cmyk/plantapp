@@ -20,8 +20,9 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm cache clean --force && \
     npm install --only=production --no-optional
 
-# Copy backend application
+# Copy backend application (excluding .env, use .env.production instead)
 COPY backend/ .
+RUN rm -f .env && mv .env.production .env
 
 # Expose port
 EXPOSE 5000
