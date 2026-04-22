@@ -69,16 +69,8 @@ app.get('/', (req, res) => {
     // Inject viewport meta tag if not present
     if (!html.includes('viewport')) {
       html = html.replace(
-        '<meta name="description"',
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">\n  <meta name="description"'
-      );
-    }
-
-    // Also ensure mobile app capable
-    if (!html.includes('apple-mobile-web-app-capable')) {
-      html = html.replace(
-        '</head>',
-        '<meta name="apple-mobile-web-app-capable" content="yes">\n  </meta>'
+        '  <meta name="description"',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">\n  <meta name="description"'
       );
     }
 
