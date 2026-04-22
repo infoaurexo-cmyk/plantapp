@@ -3,11 +3,19 @@ const path = require('path');
 require('dotenv').config();
 
 const DB_PATH = process.env.DATABASE_PATH || './plant_app.db';
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('Database connection error:', err);
-  }
-});
+let db = null;
+
+try {
+  db = new sqlite3.Database(DB_PATH, (err) => {
+    if (err) {
+      console.error(`Database connection error at ${DB_PATH}:`, err.message);
+      throw err;
+    }
+  });
+} catch (err) {
+  console.error(`Fatal: Cannot initialize database at ${DB_PATH}:`, err.message);
+  process.exit(1);
+}
 
 // Initialize database with tables
 const initializeDatabase = () => {
