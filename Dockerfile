@@ -3,7 +3,8 @@ FROM node:22-bookworm
 WORKDIR /app
 
 # SQLite3 native module compilation fix for Linux
-# Rebuild: 2026-04-22
+# Cache buster - forces fresh npm install
+# Updated: 2026-04-22T13:34:30Z
 
 # Install build dependencies for SQLite and other native modules
 RUN apt-get update && apt-get install -y \
