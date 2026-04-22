@@ -16,14 +16,16 @@ RUN apt-get update && apt-get install -y \
 # Copy backend package files
 COPY backend/package.json backend/package-lock.json ./
 
-# Install dependencies from scratch without pre-built binaries
+# Install dependencies from scratch - rebuild all native modules for Linux
 RUN npm cache clean --force && \
-    npm install --only=production
+    npm ci && \
+    npm rebuild
 
 # Copy backend application (.env is excluded via .dockerignore)
+# Remove node_modules from copied files - use the freshly built ones
 COPY backend/ .
-# Use .env.production as the environment file for production
-RUN mv .env.production .env
+RUN rm -rf node_modules && \
+    mv .env.production .env
 
 # Expose port (matches PORT=3000 in .env.production)
 EXPOSE 3000
